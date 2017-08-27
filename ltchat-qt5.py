@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 """
-    Qt4 GUI front-end to the Lightron chat.
+    Qt5 GUI front-end to the Lightron chat.
     Copyright (C) 2016-2017 Glen Harpring
     
     This program is free software: you can redistribute it and/or modify
@@ -16,37 +16,38 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-try:
-	from PyQt4 import QtCore, QtGui
-except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
-	from PySide import QtCore, QtGui
-from HTMLParser import HTMLParser
+
+from PyQt5 import QtCore, QtGui, QtWidgets
+
+
+#from HTMLParser import HTMLParser
 import sys,os,httplib,urllib,urllib2,math,time,json
-global getChat
+global getChat,useragent
 getChat = httplib.HTTPSConnection('lightron.org')
-class ChatBrowser(QtGui.QTextBrowser):
+class ChatBrowser(QtWidgets.QTextBrowser):
 	def loadResource(self,type,name):
 		if type == 1:
 			return urllib2.urlopen(str(name.toString())).read()
 		if type == 2 or type == 3:
 			if not str(name.toString()) in self.cache:
-				print "Downloading "+name.toString()+" of type "+str(type)+" into memory..."
-				try:
-					self.cache[str(name.toString())] = urllib2.urlopen(str(name.toString())).read()
-					print "[DONE]"
-				except:
-					print "[FAIL]"
-					return False
-			if type == 2:
-				return QtGui.QImage.fromData(self.cache[str(name.toString())],os.path.splitext(name.toString())[1].upper())
-			elif type == 3:
-				return self.cache[str(name.toString())]
-
+				if 'https://lightron.org/inc/images/flags/' in name.toString():
+					flag = name.toString().split("https://lightron.org/inc/images/flags/")[1].split(".")[0];
+					self.cache[str(name.toString())] = QtGui.QImage("/usr/share/locale/l10n/"+flag+"/flag.png")
+				else:
+					print "Downloading "+name.toString()+" of type "+str(type)+" into memory..."
+					try:
+						self.cache[str(name.toString())] = QtGui.QImage.fromData(urllib2.urlopen(str(name.toString())).read(),os.path.splitext(name.toString())[1].upper())
+						print "[DONE]"
+					except:
+						print "[FAIL]"
+						return False
+			return self.cache[str(name.toString())]
+useragent = "Mozilla/5.0 QTextBrowser/Qt5 LTChatGUI/beta";
 class main(object):
 	def setup(self, MainWindow):
-		global USERNAME,WHOSONLINE,PING,CHATS,wait,COOKIE,mself,FIRST
+		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,COOKIE,mself,FIRST
 		mself=self
-		COOKIE="";USERNAME = "Guest";WHOSONLINE = "";CHATS = "Loading...";PING = '?';wait=3;self.prevCHATS="";FIRST=True;
+		COOKIE="";USERNAME = "Guest";WHOSONLINE = curronline = "";CHATS = "Loading...";PING = '?';wait=3;self.prevCHATS="";FIRST=True;
 		self.thread = QtCore.QThread() #Create a generic thread for now
 		self.chatstyle = """
 html
@@ -101,23 +102,23 @@ html
 		MainWindow.resize(335,400)
 		MainWindow.setWindowTitle("Lightron Chat GUI")
 		
-		self.centralwidget = QtGui.QWidget(MainWindow)
+		self.centralwidget = QtWidgets.QWidget(MainWindow)
 		self.centralwidget.setObjectName("centralwidget")
-		self.gridLayout = QtGui.QGridLayout(self.centralwidget)
+		self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
 		self.gridLayout.setObjectName("gridLayout")
 		
-		self.label = QtGui.QLabel(self.centralwidget)
+		self.label = QtWidgets.QLabel(self.centralwidget)
 		self.label.setObjectName("label")
 		self.gridLayout.addWidget(self.label, 1, 0, 1, 1)
 		
-		self.label_3 = QtGui.QLabel(self.centralwidget)
+		self.label_3 = QtWidgets.QLabel(self.centralwidget)
 		self.label_3.setObjectName("label_3")
 		self.gridLayout.addWidget(self.label_3, 1, 1, 1, 2)
 		
-		self.pushButton_2 = QtGui.QPushButton(self.centralwidget)
+		self.pushButton_2 = QtWidgets.QPushButton(self.centralwidget)
 		self.pushButton_2.setObjectName("pushButton_2")
 		self.pushButton_2.setText("Options")
-		QtCore.QObject.connect(self.pushButton_2,QtCore.SIGNAL("clicked()"),self.showOptions)
+		self.pushButton_2.clicked.connect(self.showOptions)
 		self.gridLayout.addWidget(self.pushButton_2, 1, 3, 1, 1)
 		
 		self.textBrowser = ChatBrowser(self.centralwidget)
@@ -126,17 +127,17 @@ html
 		self.textBrowser.setOpenExternalLinks(True)
 		self.gridLayout.addWidget(self.textBrowser, 2, 0, 1, 4)
 		
-		self.pushButton = QtGui.QPushButton(self.centralwidget)
+		self.pushButton = QtWidgets.QPushButton(self.centralwidget)
 		self.pushButton.setObjectName("pushButton")
 		self.pushButton.setText("Send")
-		QtCore.QObject.connect(self.pushButton,QtCore.SIGNAL("clicked()"),self.send)
+		self.pushButton.clicked.connect(self.send)
 		self.gridLayout.addWidget(self.pushButton, 3, 3, 1, 1)
 		
-		self.lineEdit = QtGui.QLineEdit(self.centralwidget)
+		self.lineEdit = QtWidgets.QLineEdit(self.centralwidget)
 		self.lineEdit.setObjectName("lineEdit")
 		self.gridLayout.addWidget(self.lineEdit, 3, 0, 1, 3)
 		
-		self.label_2 = QtGui.QLabel(self.centralwidget)
+		self.label_2 = QtWidgets.QLabel(self.centralwidget)
 		self.label_2.setObjectName("label_2")
 		self.gridLayout.addWidget(self.label_2, 5, 0, 1, 4)
 		MainWindow.setCentralWidget(self.centralwidget)
@@ -157,27 +158,27 @@ html
 		global COOKIE
 		postdata = urllib.urlencode({'input':str(self.lineEdit.text())}) 
 		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Chat",postdata,{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
+		con.request("POST","/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
 		ChatsResponse = con.getresponse()
 		self.lineEdit.setText("")
 		self.updated();self.update()
 	def showOptions(self):
-		self.options = QtGui.QMenu()
+		self.options = QtWidgets.QMenu()
 		if USERNAME == "Guest":
 			self.optionsLogin = self.options.addAction("Login")
-			QtCore.QObject.connect(self.optionsLogin,QtCore.SIGNAL("triggered()"),self.login)
+			self.optionsLogin.triggered.connect(self.login)
 		else:
 			self.optionsProfile = self.options.addAction("Profile")
-			QtCore.QObject.connect(self.optionsProfile,QtCore.SIGNAL("triggered()"),self.profile)
+			self.optionsProfile.triggered.connect(self.profile)
 			self.optionsLogout = self.options.addAction("Logout")
-			QtCore.QObject.connect(self.optionsLogout,QtCore.SIGNAL("triggered()"),self.logout)
+			self.optionsLogout.triggered.connect(self.logout)
 		self.options.addSeparator()
 		#self.optionsToC = self.options.addAction("License Agreement")
-		#QtCore.QObject.connect(self.optionsToC,QtCore.SIGNAL("triggered()"),self.gpl)
+		#self.optionsToC.triggered.connect(self.gpl)
 		
 		self.options.exec_(QtGui.QCursor().pos())
 	def updated(self):
-		global USERNAME, COOKIE
+		global USERNAME,COOKIE
 		if USERNAME == "Guest":
 			self.label.setText("Please sign in to chat.")
 			out=True
@@ -187,7 +188,8 @@ html
 		self.pushButton.setHidden(out)
 		self.lineEdit.setHidden(out)
 		#self.label_3.setText("")
-		self.label_2.setText(""+WHOSONLINE+"; "+str(PING)+"ms")
+		self.label_2.setText(""+WHOSONLINE+", Your ping is "+str(PING)+"ms")
+		self.label_2.setToolTip(curronline)
 		if CHATS == "":
 				print "Returned chat appears to be blank."
 			
@@ -199,11 +201,11 @@ html
 		global USERNAME, COOKIE
 		postdata = urllib.urlencode({'loginType':'login','username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
 		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Authentication",postdata,{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		con.request("POST","/Authentication",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
 		data = con.getresponse()
 		datar = str(data.read())
 		if not datar == "1":
-			QtGui.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtGui.QMessageBox.Ok)
+			QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
 			loginDia.lineEdit_2.selectAll()
 		else:
 			#self.lineEdit.setText(str(data))
@@ -219,7 +221,7 @@ html
 		profile()
 	def changepass(self):
 		return;
-class LoginDialog(QtGui.QDialog):
+class LoginDialog(QtWidgets.QDialog):
 	def __init__(self):
 		super(LoginDialog,self).__init__()
 		self.setup()
@@ -227,29 +229,29 @@ class LoginDialog(QtGui.QDialog):
 		self.setWindowTitle("Login to LTChat")
 		self.resize(335,80)
 		
-		self.gridLayout = QtGui.QGridLayout(self)
+		self.gridLayout = QtWidgets.QGridLayout(self)
 		self.gridLayout.setObjectName("gridLayout")
-		spacerItem = QtGui.QSpacerItem(260, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+		spacerItem = QtWidgets.QSpacerItem(260, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 		self.gridLayout.addItem(spacerItem, 2, 0, 1, 1)
-		self.pushButton = QtGui.QPushButton(self)
+		self.pushButton = QtWidgets.QPushButton(self)
 		self.pushButton.setObjectName("pushButton")
 		self.pushButton.setText("Login!")
 		self.pushButton.setShortcut("Enter, Return")
-		QtCore.QObject.connect(self.pushButton,QtCore.SIGNAL("clicked()"),mself.completeLogin)
+		self.pushButton.clicked.connect(mself.completeLogin)
 		self.gridLayout.addWidget(self.pushButton, 2, 1, 1, 1)
-		self.lineEdit = QtGui.QLineEdit(self)
+		self.lineEdit = QtWidgets.QLineEdit(self)
 		self.lineEdit.setObjectName("lineEdit")
 		self.lineEdit.setPlaceholderText("Username")
 		self.gridLayout.addWidget(self.lineEdit, 0, 0, 1, 2)
-		self.lineEdit_2 = QtGui.QLineEdit(self)
-		self.lineEdit_2.setEchoMode(QtGui.QLineEdit.Password)
+		self.lineEdit_2 = QtWidgets.QLineEdit(self)
+		self.lineEdit_2.setEchoMode(QtWidgets.QLineEdit.Password)
 		self.lineEdit_2.setObjectName("lineEdit_2")
 		self.lineEdit_2.setPlaceholderText("Password")
 		self.gridLayout.addWidget(self.lineEdit_2, 1, 0, 1, 2)
 
 		QtCore.QMetaObject.connectSlotsByName(self)
 		
-class profileDialog(QtGui.QDialog):
+class profileDialog(QtWidgets.QDialog):
 	def __init__(self):
 		super(profileDialog,self).__init__()
 		self.setup()
@@ -257,17 +259,17 @@ class profileDialog(QtGui.QDialog):
 		self.setWindowTitle("My Profile - LTChat")
 		self.resize(335,80)
 		
-		self.gridLayout = QtGui.QGridLayout(self)
+		self.gridLayout = QtWidgets.QGridLayout(self)
 		self.gridLayout.setObjectName("gridLayout")
-		spacerItem = QtGui.QSpacerItem(260, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+		spacerItem = QtWidgets.QSpacerItem(260, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
 		self.gridLayout.addItem(spacerItem, 2, 0, 1, 1)
-		self.pushButton = QtGui.QPushButton(self)
+		self.pushButton = QtWidgets.QPushButton(self)
 		self.pushButton.setObjectName("pushButton")
 		self.pushButton.setText("Close")
 		self.pushButton.setShortcut("Enter, Return")
-		QtCore.QObject.connect(self.pushButton,QtCore.SIGNAL("clicked()"),self.close)
+		self.pushButton.clicked.connect(self.close)
 		self.gridLayout.addWidget(self.pushButton, 2, 1, 1, 1)
-		self.profileImage = QtGui.QLabel()
+		self.profileImage = QtWidgets.QLabel()
 		image = "https://lightron.org/inc/images/avatar/101.png"
 		self.proImage = QtGui.QPixmap.fromImage(mself.textBrowser.loadResource(2,QtCore.QUrl(image)))
 		self.profileImage.setPixmap(self.proImage)
@@ -277,21 +279,26 @@ class profileDialog(QtGui.QDialog):
 
 class UpdatingChat(QtCore.QThread):
 	def run(self):
-		global USERNAME,WHOSONLINE,PING,CHATS,wait,getChat,FIRST,COOKIE
+		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,getChat,FIRST,COOKIE
 		if FIRST:
 			FIRST = False;
 			con = httplib.HTTPSConnection("lightron.org")
-			con.request("GET","/","",{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta"})
+			con.request("GET","/","",{"User-Agent":useragent})
 			data = con.getresponse()
 			COOKIE = data.getheader('Set-Cookie').split(" ")[0]
 		wait=wait+1
-		defheader = {"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE}
+		defheader = {"User-Agent":useragent,"Cookie":COOKIE}
 		getChat = httplib.HTTPSConnection('lightron.org')
 		timebefore=time.time(); getChat.request("GET","/Chat","",defheader); timeafter=time.time()
 		ChatsResponse = json.loads(getChat.getresponse().read())
-		thechatshtm = ChatsResponse["output"]
-		WHOSONLINE = ChatsResponse["chatters"]
-		CHATS = str(thechatshtm.replace("<a href=\"/","<a href=\"https://lightron.org/").replace("<img src=\"/","<img src=\"https://lightron.org/").replace('class=\"avatar\"','" width="12" height="12"').replace('style=\"height: 10px; margin: 0px 4px -1px 0px;\"','"width="10" height="10"')) 
+		thechatshtm = ChatsResponse["output"].replace("margin: 0px 4px -1px 0px;","margin-right:4px;margin-bottom:-1px;")
+		#WHOSONLINE = ChatsResponse["chatters"].replace("padding: 0px 4px;\">","\"> ")
+		WHOSONLINE = ChatsResponse["chatters"].split(":")[0]
+		if len(ChatsResponse["chatters"].split(":")) > 1:
+			curronline = ChatsResponse["chatters"].split(":")[1].replace("padding: 0px 4px;\">","\"> ")
+		else:
+			curronline = "nobody"
+		CHATS = str(thechatshtm.replace("<a href=\"/","<a href=\"https://lightron.org/").replace("<img src=\"/","<img src=\"https://lightron.org/").replace('class=\"avatar\"','" width="12" height="12"').replace('style=\"height: 10px; margin: 0px 4px -1px 0px;\"','"width="21" height="14"')) 
 		PING = int((float(timeafter)-float(timebefore))*1000)
 		#self.updated()
 		#print "Updated!"
@@ -308,8 +315,8 @@ def profile():
 	profileDia.setWindowModality(QtCore.Qt.ApplicationModal)
 	profileDia.show()
 
-app = QtGui.QApplication(sys.argv)
-MainWindow = QtGui.QMainWindow()
+app = QtWidgets.QApplication(sys.argv)
+MainWindow = QtWidgets.QMainWindow()
 ui = main()
 ui.setup(MainWindow)
 MainWindow.show()
