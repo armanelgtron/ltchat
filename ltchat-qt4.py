@@ -49,7 +49,7 @@ class main(object):
 		COOKIE="";USERNAME = "Guest";WHOSONLINE = "";CHATS = "Loading...";PING = '?';wait=3;self.prevCHATS="";FIRST=True;
 		self.thread = QtCore.QThread() #Create a generic thread for now
 		self.chatstyle = """
-.chat
+html
 {
 	width: 293px;
 	
@@ -58,44 +58,26 @@ class main(object):
 	line-height: 18px;
 }
 
-.chat .input .message
+.message
 {
 	width: 205px;
 	float: left;
 }
 
-.chat .input .send
+.send
 {
 	width: 60px;
 	padding: 0px;
 	margin-top: 2px;
 }
 
-.chat .output
-{
-	clear: both;
-	margin-top: 5px;
-	
-	width: 100%;
-	height: 350px;
-	
-	overflow-x: hidden;
-	overflow-y: scroll;
-}
-
-.chat .output img
-{
-	max-width: 100%;
-	max-height: 200px;
-}
-
-.chat .message
+.message
 {
 	width: 98%;
 	border-bottom: 1px solid #CCC;
 }
 
-.chat .user
+.user
 {
 	font-size: 12px;
 	font-weight: bold;
@@ -103,14 +85,14 @@ class main(object):
 	padding-right:3px;
 }
 
-.chat .timestamp
+.timestamp
 {
 	color: #555;
 	font-size: 10px;
 	margin-left: 30px;
 }
 
-.chat .delete
+.delete
 {
 	float: right;
 	margin-right: 10px;
@@ -194,8 +176,6 @@ class main(object):
 		#QtCore.QObject.connect(self.optionsToC,QtCore.SIGNAL("triggered()"),self.gpl)
 		
 		self.options.exec_(QtGui.QCursor().pos())
-	def gpl(self):
-		webbrowser.open('https://www.gnu.org/licenses/gpl-3.0-standalone.html')
 	def updated(self):
 		global USERNAME, COOKIE
 		if USERNAME == "Guest":
