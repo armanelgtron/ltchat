@@ -21,7 +21,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 
 
 #from HTMLParser import HTMLParser
-import sys,os,httplib,urllib,urllib2,math,time,json
+import sys,os,httplib,urllib,urllib2,math,time,json,traceback
 global getChat,useragent
 getChat = httplib.HTTPSConnection('lightron.org')
 class ChatBrowser(QtWidgets.QTextBrowser):
@@ -156,10 +156,13 @@ html
 			self.thread.start()
 	def send(self):
 		global COOKIE
-		postdata = urllib.urlencode({'input':str(self.lineEdit.text())}) 
-		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
-		ChatsResponse = con.getresponse()
+		postdata = urllib.urlencode({'input':str(self.lineEdit.text())})
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
+			ChatsResponse = con.getresponse()
+		except:
+			pass;
 		self.lineEdit.setText("")
 		self.updated();self.update()
 	def showOptions(self):
@@ -173,6 +176,10 @@ html
 			self.optionsLogout = self.options.addAction("Logout")
 			self.optionsLogout.triggered.connect(self.logout)
 		self.options.addSeparator()
+		self.optionsStats = self.options.addAction("Statitics")
+		self.optionsStats.triggered.connect(self.stats)
+		self.optionsAbout = self.options.addAction("About")
+		self.optionsStats.triggered.connect(self.about)
 		#self.optionsToC = self.options.addAction("License Agreement")
 		#self.optionsToC.triggered.connect(self.gpl)
 		
@@ -200,13 +207,21 @@ html
 	def completeLogin(self):
 		global USERNAME, COOKIE
 		postdata = urllib.urlencode({'loginType':'login','username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
-		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Authentication",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Authentication",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		except:
+			QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Unable to login. Are you connected to the internet?',QtWidgets.QMessageBox.Ok)
+			return;
 		data = con.getresponse()
 		datar = str(data.read())
+		print datar
 		if not datar == "1":
-			QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
-			loginDia.lineEdit_2.selectAll()
+			if not datar.isdigit():
+				QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Returned "'+datar.rstrip('\n')+'"',QtWidgets.QMessageBox.Ok)
+			else:
+				QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
+				loginDia.lineEdit_2.selectAll()
 		else:
 			#self.lineEdit.setText(str(data))
 			#COOKIE = data.getheader('Cookie') 
@@ -219,6 +234,10 @@ html
 		self.updated()
 	def profile(self):
 		profile()
+	def stats(self):
+		return;
+	def about(self):
+		return;
 	def changepass(self):
 		return;
 class LoginDialog(QtWidgets.QDialog):
@@ -258,7 +277,12 @@ class profileDialog(QtWidgets.QDialog):
 	def setup(self):
 		self.setWindowTitle("My Profile - LTChat")
 		self.resize(335,80)
-		
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Authentication",urllib.urlencode({'action':'userControlPanel'}),{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		except:
+			QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Unable to login. Are you connected to the internet?',QtWidgets.QMessageBox.Ok)
+			return;
 		self.gridLayout = QtWidgets.QGridLayout(self)
 		self.gridLayout.setObjectName("gridLayout")
 		spacerItem = QtWidgets.QSpacerItem(260, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -281,16 +305,37 @@ class UpdatingChat(QtCore.QThread):
 	def run(self):
 		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,getChat,FIRST,COOKIE
 		if FIRST:
+			try:
+				con = httplib.HTTPSConnection("lightron.org")
+				con.request("GET","/","",{"User-Agent":useragent})
+				data = con.getresponse()
+			except httplib.ssl.SSLError:
+				ex_type, ex, tb = sys.exc_info()
+				CHATS = "<body><p><strong>Error:</strong> SSL Certificate Error!</p> <p>"+traceback.format_exc(tb)+"</p></body>"
+				PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+				del tb; return;
+			except:
+				CHATS = "<p><strong>Error:</strong> Loading failed, is your internet connected?</p>"
+				PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+				return;
 			FIRST = False;
-			con = httplib.HTTPSConnection("lightron.org")
-			con.request("GET","/","",{"User-Agent":useragent})
-			data = con.getresponse()
-			COOKIE = data.getheader('Set-Cookie').split(" ")[0]
+			cookieheader = data.getheader('Set-Cookie');
+			if cookieheader is None:
+				cookieheader = "";
+			COOKIE = cookieheader.split(" ")[0]
 		wait=wait+1
 		defheader = {"User-Agent":useragent,"Cookie":COOKIE}
 		getChat = httplib.HTTPSConnection('lightron.org')
-		timebefore=time.time(); getChat.request("GET","/Chat","",defheader); timeafter=time.time()
-		ChatsResponse = json.loads(getChat.getresponse().read())
+		try:
+			timebefore=time.time(); getChat.request("GET","/Chat","",defheader); timeafter=time.time()
+		except:
+			return;
+		try:
+			ChatsResponse = json.loads(getChat.getresponse().read())
+		except: 
+			if CHATS is "": CHATS = "<p><strong>Error:</strong> Unable to receive chats. Is your internet connection working?</p>"
+			PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+			return
 		thechatshtm = ChatsResponse["output"].replace("margin: 0px 4px -1px 0px;","margin-right:4px;margin-bottom:-1px;")
 		#WHOSONLINE = ChatsResponse["chatters"].replace("padding: 0px 4px;\">","\"> ")
 		WHOSONLINE = ChatsResponse["chatters"].split(":")[0]
