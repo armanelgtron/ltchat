@@ -139,6 +139,7 @@ html
 		
 		self.label_2 = QtWidgets.QLabel(self.centralwidget)
 		self.label_2.setObjectName("label_2")
+		self.label_2.setOpenExternalLinks(True)
 		self.gridLayout.addWidget(self.label_2, 5, 0, 1, 4)
 		MainWindow.setCentralWidget(self.centralwidget)
 		
@@ -159,7 +160,7 @@ html
 		postdata = urllib.urlencode({'input':str(self.lineEdit.text())})
 		try:
 			con = httplib.HTTPSConnection("lightron.org")
-			con.request("POST","/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
+			con.request("POST","/Ajax/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
 			ChatsResponse = con.getresponse()
 		except:
 			pass;
@@ -194,8 +195,8 @@ html
 			out=False
 		self.pushButton.setHidden(out)
 		self.lineEdit.setHidden(out)
-		#self.label_3.setText("")
-		self.label_2.setText(""+WHOSONLINE+", Your ping is "+str(PING)+"ms")
+		self.label_3.setText(str(PING)+"ms")
+		self.label_2.setText(WHOSONLINE)
 		self.label_2.setToolTip(curronline)
 		if CHATS == "":
 				print "Returned chat appears to be blank."
@@ -206,7 +207,7 @@ html
 		login()
 	def completeLogin(self):
 		global USERNAME, COOKIE
-		postdata = urllib.urlencode({'loginType':'login','username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
+		postdata = urllib.urlencode({'username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
 		try:
 			con = httplib.HTTPSConnection("lightron.org")
 			con.request("POST","/Authentication",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
@@ -324,27 +325,33 @@ class UpdatingChat(QtCore.QThread):
 				cookieheader = "";
 			COOKIE = cookieheader.split(" ")[0]
 		wait=wait+1
-		defheader = {"User-Agent":useragent,"Cookie":COOKIE}
+		defheader = {"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8","X-Requested-With":"XMLHttpRequest"}
 		getChat = httplib.HTTPSConnection('lightron.org')
+		pullr = urllib.urlencode({"action":"pull","max-id":"0"})
 		try:
-			timebefore=time.time(); getChat.request("GET","/Chat","",defheader); timeafter=time.time()
+			timebefore=time.time(); getChat.request("POST","/Ajax/Chat",pullr,defheader); timeafter=time.time()
+			PING = int((float(timeafter)-float(timebefore))*1000)
 		except:
 			return;
 		try:
-			ChatsResponse = json.loads(getChat.getresponse().read())
-		except: 
+			ChatsRespons = getChat.getresponse().read()
+			#print ChatsRespons;
+		except:
 			if CHATS is "": CHATS = "<p><strong>Error:</strong> Unable to receive chats. Is your internet connection working?</p>"
 			PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+		try:
+			ChatsResponse = json.loads(ChatsRespons)
+			#print ChatsResponse;
+		except: 
 			return
 		thechatshtm = ChatsResponse["output"].replace("margin: 0px 4px -1px 0px;","margin-right:4px;margin-bottom:-1px;")
 		#WHOSONLINE = ChatsResponse["chatters"].replace("padding: 0px 4px;\">","\"> ")
-		WHOSONLINE = ChatsResponse["chatters"].split(":")[0]
-		if len(ChatsResponse["chatters"].split(":")) > 1:
-			curronline = ChatsResponse["chatters"].split(":")[1].replace("padding: 0px 4px;\">","\"> ")
+		WHOSONLINE = ChatsResponse["online"]
+		if len(ChatsResponse["online"].split(":")) > 1:
+			curronline = ChatsResponse["online"].split(":")[1].replace("padding: 0px 4px;\">","\"> ")
 		else:
 			curronline = "nobody"
 		CHATS = str(thechatshtm.replace("<a href=\"/","<a href=\"https://lightron.org/").replace("<img src=\"/","<img src=\"https://lightron.org/").replace('class=\"avatar\"','" width="12" height="12"').replace('style=\"height: 10px; margin: 0px 4px -1px 0px;\"','"width="21" height="14"')) 
-		PING = int((float(timeafter)-float(timebefore))*1000)
 		#self.updated()
 		#print "Updated!"
 
