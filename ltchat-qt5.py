@@ -30,8 +30,11 @@ class ChatBrowser(QtWidgets.QTextBrowser):
 			return urllib2.urlopen(str(name.toString())).read()
 		if type == 2 or type == 3:
 			if not str(name.toString()) in self.cache:
-				if 'https://lightron.org/inc/images/flags/' in name.toString():
+				try:
 					flag = name.toString().split("https://lightron.org/inc/images/flags/")[1].split(".")[0];
+				except:
+					flag = "tftde";
+				if 'https://lightron.org/inc/images/flags/' in name.toString() and flag is not "tftde" and os.path.isfile("/usr/share/locale/l10n/"+flag+"/flag.png"):
 					self.cache[str(name.toString())] = QtGui.QImage("/usr/share/locale/l10n/"+flag+"/flag.png")
 				else:
 					print "Downloading "+name.toString()+" of type "+str(type)+" into memory..."
@@ -157,7 +160,7 @@ html
 			self.thread.start()
 	def send(self):
 		global COOKIE
-		postdata = urllib.urlencode({'input':str(self.lineEdit.text())})
+		postdata = urllib.urlencode({'action':'submit','message':str(self.lineEdit.text())})
 		try:
 			con = httplib.HTTPSConnection("lightron.org")
 			con.request("POST","/Ajax/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
@@ -217,7 +220,7 @@ html
 		data = con.getresponse()
 		datar = str(data.read())
 		print datar
-		if not datar == "1":
+		if not datar == "":
 			if not datar.isdigit():
 				QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Returned "'+datar.rstrip('\n')+'"',QtWidgets.QMessageBox.Ok)
 			else:
