@@ -1,6 +1,6 @@
 #!/usr/bin/python2
 """
-    Qt5 GUI front-end to the Lightron chat.
+    Qt GUI front-end to the Lightron chat.
     Copyright (C) 2016-2017 Glen Harpring
     
     This program is free software: you can redistribute it and/or modify
@@ -17,11 +17,28 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+import sys,os,httplib,urllib,urllib2,math,time,json,traceback
+try:
+	if sys.argv[1] == "-qt4": 
+		print("qt4?")
+		raise ImportError
+	else:
+		print "arg "+sys.argv[1]+" arg "
+	from PyQt5 import QtCore, QtGui, QtWidgets
+except ImportError: #Fallback to PyQt4
+	print("Warning: Using Qt4")
+	try:
+		from PyQt4 import QtCore, QtGui
+		from PyQt4 import QtGui as QtWidgets
+	except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
+		try:
+			from PySide import QtCore, QtGui
+			from PySide import QtGui as QtWidgets
+		except ImportError:
+			print("PyQt4 or PyQt5 must be installed for this to work");
 
 
 #from HTMLParser import HTMLParser
-import sys,os,httplib,urllib,urllib2,math,time,json,traceback
 global getChat,useragent
 getChat = httplib.HTTPSConnection('lightron.org')
 class ChatBrowser(QtWidgets.QTextBrowser):
