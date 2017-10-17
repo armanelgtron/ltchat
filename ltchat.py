@@ -20,10 +20,7 @@
 import sys,os,httplib,urllib,urllib2,math,time,json,traceback
 try:
 	if sys.argv[1] == "-qt4": 
-		print("qt4?")
 		raise ImportError
-	else:
-		print "arg "+sys.argv[1]+" arg "
 	from PyQt5 import QtCore, QtGui, QtWidgets
 except ImportError: #Fallback to PyQt4
 	print("Warning: Using Qt4")
