@@ -27,6 +27,7 @@ try:
 	if gui == "-qt4" or gui == "-qt3": 
 		raise ImportError
 	from PyQt5 import QtCore, QtGui, QtWidgets
+	guiused = "Qt5"
 except ImportError: #Fallback to PyQt4
 	print("Warning: Attempting to use Qt4")
 	try:
@@ -34,16 +35,19 @@ except ImportError: #Fallback to PyQt4
 			raise ImportError
 		from PyQt4 import QtCore, QtGui
 		from PyQt4 import QtGui as QtWidgets
+		guiused = "Qt4"
 	except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
 		try:
 			if gui == "-qt3": 
 				raise ImportError
 			from PySide import QtCore, QtGui
 			from PySide import QtGui as QtWidgets
+			guiused = "Qt4"
 		except ImportError:
 			print("Warning: Attempting to use Qt3")
 			try:
 				from qt import QtCore, QtGui
+				guiused = "Qt3"
 			except:
 				print("PyQt4 or PyQt5 must be installed for this to work (properly)");
 
@@ -72,7 +76,7 @@ class ChatBrowser(QtWidgets.QTextBrowser):
 						print "[FAIL]"
 						return False
 			return self.cache[str(name.toString())]
-useragent = "Mozilla/5.0 QTextBrowser/Qt5 LTChatGUI/beta";
+useragent = "Mozilla/5.0 QTextBrowser/"+guiused+" LTChatGUI/3.0r10";
 class main(object):
 	def setup(self, MainWindow):
 		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,COOKIE,mself,FIRST
