@@ -19,20 +19,28 @@
 
 import sys,os,httplib,urllib,urllib2,math,time,json,traceback
 try:
-	if sys.argv[1] == "-qt4": 
+	if sys.argv[1] == "-qt4" or sys.argv[1] == "-qt3": 
 		raise ImportError
 	from PyQt5 import QtCore, QtGui, QtWidgets
 except ImportError: #Fallback to PyQt4
-	print("Warning: Using Qt4")
+	print("Warning: Attempting to use Qt4")
 	try:
+		if sys.argv[1] == "-qt3": 
+			raise ImportError
 		from PyQt4 import QtCore, QtGui
 		from PyQt4 import QtGui as QtWidgets
 	except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
 		try:
+			if sys.argv[1] == "-qt3": 
+				raise ImportError
 			from PySide import QtCore, QtGui
 			from PySide import QtGui as QtWidgets
 		except ImportError:
-			print("PyQt4 or PyQt5 must be installed for this to work");
+			print("Warning: Attempting to use Qt3")
+			try:
+				from qt import QtCore, QtGui
+			except:
+				print("PyQt4 or PyQt5 must be installed for this to work (properly)");
 
 
 #from HTMLParser import HTMLParser
