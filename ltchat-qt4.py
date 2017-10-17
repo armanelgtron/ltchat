@@ -20,9 +20,9 @@ try:
 	from PyQt4 import QtCore, QtGui
 except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
 	from PySide import QtCore, QtGui
-from HTMLParser import HTMLParser
+#from HTMLParser import HTMLParser
 import sys,os,httplib,urllib,urllib2,math,time,json
-global getChat
+global getChat,useragent
 getChat = httplib.HTTPSConnection('lightron.org')
 class ChatBrowser(QtGui.QTextBrowser):
 	def loadResource(self,type,name):
@@ -30,23 +30,27 @@ class ChatBrowser(QtGui.QTextBrowser):
 			return urllib2.urlopen(str(name.toString())).read()
 		if type == 2 or type == 3:
 			if not str(name.toString()) in self.cache:
-				print "Downloading "+name.toString()+" of type "+str(type)+" into memory..."
 				try:
-					self.cache[str(name.toString())] = urllib2.urlopen(str(name.toString())).read()
-					print "[DONE]"
+					flag = name.toString().split("https://lightron.org/inc/images/flags/")[1].split(".")[0];
 				except:
-					print "[FAIL]"
-					return False
-			if type == 2:
-				return QtGui.QImage.fromData(self.cache[str(name.toString())],os.path.splitext(name.toString())[1].upper())
-			elif type == 3:
-				return self.cache[str(name.toString())]
-
+					flag = "tftde";
+				if 'https://lightron.org/inc/images/flags/' in name.toString() and flag is not "tftde" and os.path.isfile("/usr/share/locale/l10n/"+flag+"/flag.png"):
+					self.cache[str(name.toString())] = QtGui.QImage("/usr/share/locale/l10n/"+flag+"/flag.png")
+				else:
+					print "Downloading "+name.toString()+" of type "+str(type)+" into memory..."
+					try:
+						self.cache[str(name.toString())] = QtGui.QImage.fromData(urllib2.urlopen(str(name.toString())).read(),os.path.splitext(name.toString())[1].upper())
+						print "[DONE]"
+					except:
+						print "[FAIL]"
+						return False
+			return self.cache[str(name.toString())]
+useragent = "Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta";
 class main(object):
 	def setup(self, MainWindow):
-		global USERNAME,WHOSONLINE,PING,CHATS,wait,COOKIE,mself,FIRST
+		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,COOKIE,mself,FIRST
 		mself=self
-		COOKIE="";USERNAME = "Guest";WHOSONLINE = "";CHATS = "Loading...";PING = '?';wait=3;self.prevCHATS="";FIRST=True;
+		COOKIE="";USERNAME = "Guest";WHOSONLINE = curronline = "";CHATS = "Loading...";PING = '?';wait=3;self.prevCHATS="";FIRST=True;
 		self.thread = QtCore.QThread() #Create a generic thread for now
 		self.chatstyle = """
 html
@@ -138,6 +142,7 @@ html
 		
 		self.label_2 = QtGui.QLabel(self.centralwidget)
 		self.label_2.setObjectName("label_2")
+		self.label_2.setOpenExternalLinks(True)
 		self.gridLayout.addWidget(self.label_2, 5, 0, 1, 4)
 		MainWindow.setCentralWidget(self.centralwidget)
 		
@@ -155,25 +160,32 @@ html
 			self.thread.start()
 	def send(self):
 		global COOKIE
-		postdata = urllib.urlencode({'input':str(self.lineEdit.text())}) 
-		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Chat",postdata,{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
-		ChatsResponse = con.getresponse()
+		postdata = urllib.urlencode({'action':'submit','message':str(self.lineEdit.text())})
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Ajax/Chat",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"})  
+			ChatsResponse = con.getresponse()
+		except:
+			pass;
 		self.lineEdit.setText("")
 		self.updated();self.update()
 	def showOptions(self):
 		self.options = QtGui.QMenu()
 		if USERNAME == "Guest":
 			self.optionsLogin = self.options.addAction("Login")
-			QtCore.QObject.connect(self.optionsLogin,QtCore.SIGNAL("triggered()"),self.login)
+			self.optionsLogin.triggered.connect(self.login)
 		else:
 			self.optionsProfile = self.options.addAction("Profile")
-			QtCore.QObject.connect(self.optionsProfile,QtCore.SIGNAL("triggered()"),self.profile)
+			self.optionsProfile.triggered.connect(self.profile)
 			self.optionsLogout = self.options.addAction("Logout")
-			QtCore.QObject.connect(self.optionsLogout,QtCore.SIGNAL("triggered()"),self.logout)
+			self.optionsLogout.triggered.connect(self.logout)
 		self.options.addSeparator()
+		self.optionsStats = self.options.addAction("Statitics")
+		self.optionsStats.triggered.connect(self.stats)
+		self.optionsAbout = self.options.addAction("About")
+		self.optionsStats.triggered.connect(self.about)
 		#self.optionsToC = self.options.addAction("License Agreement")
-		#QtCore.QObject.connect(self.optionsToC,QtCore.SIGNAL("triggered()"),self.gpl)
+		#self.optionsToC.triggered.connect(self.gpl)
 		
 		self.options.exec_(QtGui.QCursor().pos())
 	def updated(self):
@@ -186,8 +198,9 @@ html
 			out=False
 		self.pushButton.setHidden(out)
 		self.lineEdit.setHidden(out)
-		#self.label_3.setText("")
-		self.label_2.setText(""+WHOSONLINE+"; "+str(PING)+"ms")
+		self.label_3.setText(str(PING)+"ms")
+		self.label_2.setText(WHOSONLINE)
+		self.label_2.setToolTip(curronline)
 		if CHATS == "":
 				print "Returned chat appears to be blank."
 			
@@ -197,14 +210,22 @@ html
 		login()
 	def completeLogin(self):
 		global USERNAME, COOKIE
-		postdata = urllib.urlencode({'loginType':'login','username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
-		con = httplib.HTTPSConnection("lightron.org")
-		con.request("POST","/Authentication",postdata,{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		postdata = urllib.urlencode({'username':loginDia.lineEdit.text(),'password':loginDia.lineEdit_2.text()}) 
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Authentication",postdata,{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		except:
+			QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Unable to login. Are you connected to the internet?',QtWidgets.QMessageBox.Ok)
+			return;
 		data = con.getresponse()
 		datar = str(data.read())
-		if not datar == "1":
-			QtGui.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtGui.QMessageBox.Ok)
-			loginDia.lineEdit_2.selectAll()
+		print datar
+		if not datar == "":
+			if not datar.isdigit():
+				QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Returned "'+datar.rstrip('\n')+'"',QtWidgets.QMessageBox.Ok)
+			else:
+				QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
+				loginDia.lineEdit_2.selectAll()
 		else:
 			#self.lineEdit.setText(str(data))
 			#COOKIE = data.getheader('Cookie') 
@@ -217,6 +238,10 @@ html
 		self.updated()
 	def profile(self):
 		profile()
+	def stats(self):
+		return;
+	def about(self):
+		return;
 	def changepass(self):
 		return;
 class LoginDialog(QtGui.QDialog):
@@ -256,7 +281,12 @@ class profileDialog(QtGui.QDialog):
 	def setup(self):
 		self.setWindowTitle("My Profile - LTChat")
 		self.resize(335,80)
-		
+		try:
+			con = httplib.HTTPSConnection("lightron.org")
+			con.request("POST","/Authentication",urllib.urlencode({'action':'userControlPanel'}),{"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8"}) 
+		except:
+			QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Unable to login. Are you connected to the internet?',QtWidgets.QMessageBox.Ok)
+			return;
 		self.gridLayout = QtGui.QGridLayout(self)
 		self.gridLayout.setObjectName("gridLayout")
 		spacerItem = QtGui.QSpacerItem(260, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
@@ -277,22 +307,54 @@ class profileDialog(QtGui.QDialog):
 
 class UpdatingChat(QtCore.QThread):
 	def run(self):
-		global USERNAME,WHOSONLINE,PING,CHATS,wait,getChat,FIRST,COOKIE
+		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,getChat,FIRST,COOKIE
 		if FIRST:
+			try:
+				con = httplib.HTTPSConnection("lightron.org")
+				con.request("GET","/","",{"User-Agent":useragent})
+				data = con.getresponse()
+			except httplib.ssl.SSLError:
+				ex_type, ex, tb = sys.exc_info()
+				CHATS = "<body><p><strong>Error:</strong> SSL Certificate Error!</p> <p>"+traceback.format_exc(tb)+"</p></body>"
+				PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+				del tb; return;
+			except:
+				CHATS = "<p><strong>Error:</strong> Loading failed, is your internet connected?</p>"
+				PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+				return;
 			FIRST = False;
-			con = httplib.HTTPSConnection("lightron.org")
-			con.request("GET","/","",{"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta"})
-			data = con.getresponse()
-			COOKIE = data.getheader('Set-Cookie').split(" ")[0]
+			cookieheader = data.getheader('Set-Cookie');
+			if cookieheader is None:
+				cookieheader = "";
+			COOKIE = cookieheader.split(" ")[0]
 		wait=wait+1
-		defheader = {"User-Agent":"Mozilla/5.0 QTextBrowser/Qt4 LTChatGUI/beta","Cookie":COOKIE}
+		defheader = {"User-Agent":useragent,"Cookie":COOKIE,"Content-Type":"application/x-www-form-urlencoded; charset=UTF-8","X-Requested-With":"XMLHttpRequest"}
 		getChat = httplib.HTTPSConnection('lightron.org')
-		timebefore=time.time(); getChat.request("GET","/Chat","",defheader); timeafter=time.time()
-		ChatsResponse = json.loads(getChat.getresponse().read())
-		thechatshtm = ChatsResponse["output"]
-		WHOSONLINE = ChatsResponse["chatters"]
-		CHATS = str(thechatshtm.replace("<a href=\"/","<a href=\"https://lightron.org/").replace("<img src=\"/","<img src=\"https://lightron.org/").replace('class=\"avatar\"','" width="12" height="12"').replace('style=\"height: 10px; margin: 0px 4px -1px 0px;\"','"width="10" height="10"')) 
-		PING = int((float(timeafter)-float(timebefore))*1000)
+		pullr = urllib.urlencode({"action":"pull","max-id":"0"})
+		try:
+			timebefore=time.time(); getChat.request("POST","/Ajax/Chat",pullr,defheader); timeafter=time.time()
+			PING = int((float(timeafter)-float(timebefore))*1000)
+		except:
+			return;
+		try:
+			ChatsRespons = getChat.getresponse().read()
+			#print ChatsRespons;
+		except:
+			if CHATS is "": CHATS = "<p><strong>Error:</strong> Unable to receive chats. Is your internet connection working?</p>"
+			PING = "inf"; WHOSONLINE = ""; curronline = "can't tell"
+		try:
+			ChatsResponse = json.loads(ChatsRespons)
+			#print ChatsResponse;
+		except: 
+			return
+		thechatshtm = ChatsResponse["output"].replace("margin: 0px 4px -1px 0px;","margin-right:4px;margin-bottom:-1px;")
+		#WHOSONLINE = ChatsResponse["chatters"].replace("padding: 0px 4px;\">","\"> ")
+		WHOSONLINE = ChatsResponse["online"]
+		if len(ChatsResponse["online"].split(":")) > 1:
+			curronline = ChatsResponse["online"].split(":")[1].replace("padding: 0px 4px;\">","\"> ")
+		else:
+			curronline = "nobody"
+		CHATS = str(thechatshtm.replace("<a href=\"/","<a href=\"https://lightron.org/").replace("<img src=\"/","<img src=\"https://lightron.org/").replace('class=\"avatar\"','" width="12" height="12"').replace('style=\"height: 10px; margin: 0px 4px -1px 0px;\"','"width="21" height="14"'))
 		#self.updated()
 		#print "Updated!"
 
