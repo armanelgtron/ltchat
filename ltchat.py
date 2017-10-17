@@ -18,20 +18,25 @@
 """
 
 import sys,os,httplib,urllib,urllib2,math,time,json,traceback
+print len(sys.argv)
+if len(sys.argv) < 2: 
+	gui = "-qt5"
+else:
+	gui = sys.argv[1]
 try:
-	if sys.argv[1] == "-qt4" or sys.argv[1] == "-qt3": 
+	if gui == "-qt4" or gui == "-qt3": 
 		raise ImportError
 	from PyQt5 import QtCore, QtGui, QtWidgets
 except ImportError: #Fallback to PyQt4
 	print("Warning: Attempting to use Qt4")
 	try:
-		if sys.argv[1] == "-qt3": 
+		if gui == "-qt3": 
 			raise ImportError
 		from PyQt4 import QtCore, QtGui
 		from PyQt4 import QtGui as QtWidgets
 	except ImportError: #Fallback to PySide is basically PyQt4 and is still included in the latest Ubuntu releases.
 		try:
-			if sys.argv[1] == "-qt3": 
+			if gui == "-qt3": 
 				raise ImportError
 			from PySide import QtCore, QtGui
 			from PySide import QtGui as QtWidgets
