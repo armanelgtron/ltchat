@@ -76,7 +76,7 @@ class ChatBrowser(QtWidgets.QTextBrowser):
 						print "[FAIL]"
 						return False
 			return self.cache[str(name.toString())]
-useragent = "Mozilla/5.0 QTextBrowser/"+guiused+" LTChatGUI/3.0r10";
+useragent = "Mozilla/5.0 QTextBrowser/"+guiused+" LTChatGUI/3.0r12";
 class main(object):
 	def setup(self, MainWindow):
 		global USERNAME,WHOSONLINE,curronline,PING,CHATS,wait,COOKIE,mself,FIRST
