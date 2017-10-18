@@ -93,12 +93,6 @@ html
 	line-height: 18px;
 }
 
-.message
-{
-	width: 205px;
-	float: left;
-}
-
 .send
 {
 	width: 60px;
@@ -108,7 +102,8 @@ html
 
 .message
 {
-	width: 98%;
+	position: relative;
+	right: 3px;
 	border-bottom: 1px solid #CCC;
 }
 
@@ -250,13 +245,12 @@ html
 			return;
 		data = con.getresponse()
 		datar = str(data.read())
-		print datar
-		if not datar == "":
-			if not datar.isdigit():
-				QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Returned "'+datar.rstrip('\n')+'"',QtWidgets.QMessageBox.Ok)
-			else:
-				QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
-				loginDia.lineEdit_2.selectAll()
+		datars = data.getheader('Location')
+		if datars == "/?invalid":
+			QtWidgets.QMessageBox.warning(MainWindow,'LTChat','Username and/or password invalid.',QtWidgets.QMessageBox.Ok)
+			loginDia.lineEdit_2.selectAll()
+		elif datars != "/":
+			QtWidgets.QMessageBox.critical(MainWindow,'LTChat','Returned "'+datar.rstrip('\n')+'"',QtWidgets.QMessageBox.Ok)
 		else:
 			#self.lineEdit.setText(str(data))
 			#COOKIE = data.getheader('Cookie') 
